@@ -1,0 +1,54 @@
+// PSIAMP.HRH - PsiAmp's commands and dialog lines
+#ifndef __PSIAMP_HRH__
+#define __PSIAMP_HRH__
+
+enum TPaCommand
+	{
+	EPaCmdOpenFile = 0x1000,
+	EPaCmdOpenFolder,
+	EPaCmdAddFile,
+	EPaCmdAddFolder,
+	EPaCmdSavePlaylist,
+	EPaCmdRemove,
+	EPaCmdClear,
+	EPaCmdSort,
+	EPaCmdPlaylist,
+	EPaCmdDouble,
+	EPaCmdVisualiser,
+	EPaCmdOnTop,
+	EPaCmdSkinStandard,
+	EPaCmdSkinEpoc,
+	EPaCmdSkinOther,
+	EPaCmdSkin0,                 // the skins found: EPaCmdSkin0 + n (6 at most)
+	EPaCmdPlay = 0x1020,
+	EPaCmdPause,
+	EPaCmdStop,
+	EPaCmdPrev,
+	EPaCmdNext,
+	EPaCmdGoTo,
+	EPaCmdShuffle,
+	EPaCmdRepeat,
+	EPaCmdPrefs,
+	EPaCmdSpeedTest,
+	EPaCmdAbout,
+	EPaCmdHide,
+	EPaCmdPlaySelected
+	};
+
+enum TPaDlgLine
+	{
+	EPaDlgAboutName = 0x100,
+	EPaDlgAboutText,
+	EPaDlgAboutCopy,
+	EPaDlgAboutHelix,
+	EPaDlgAboutHelix2,
+	EPaDlgAboutSource,
+	EPaDlgAboutSource2,
+	EPaDlgTime,
+	EPaDlgKeys,
+	EPaDlgVis,
+	EPaDlgTimeShown,
+	EPaDlgKeysNote
+	};
+
+#endif

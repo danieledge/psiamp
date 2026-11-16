@@ -1,0 +1,16 @@
+// PAREC.MMP - PsiAmp.mdl: MP3, WAV and M3U files open in PsiAmp (Coda's ROM,
+// Z:\System\Recogs). Built as parec.mdl.
+TARGET        parec.mdl
+TARGETTYPE    dll
+UID           0x10000C07 0x01000AFB
+
+PROJECT       ptproj
+SUBPROJECT    parec
+
+SOURCE        parec.cpp
+
+USERINCLUDE   \ptproj\parec
+SYSTEMINCLUDE \epoc32\include
+
+LIBRARY       euser.lib efsrv.lib apmime.lib
+EXPORTUNFROZEN

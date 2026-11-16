@@ -1,0 +1,250 @@
+// PSIAMP.RSS - PsiAmp, an MP3 player for Coda
+NAME PSAM
+
+#include <eikdef.rh>
+#include <eikmenu.rh>
+#include <eikmenu.hrh>
+#include <eikcmds.hrh>
+#include <eiklabel.rh>
+#include <eiklabel.hrh>
+#include <eikctrls.hrh>
+#include <eikdialg.rh>
+#include <eikdialg.hrh>
+#include <eikchlst.rh>
+#include <eikmfne.rh>
+#include <eikmfne.hrh>
+#include <eikkeys.h>
+#include <eikon.rsg>
+#include "psiamp.hrh"
+
+RESOURCE RSS_SIGNATURE { }
+
+// (the System screen leaves out a program with no standard file name)
+RESOURCE TBUF { buf="PsiAmp"; }
+
+// no toolbar: the player is a skinned panel over the program in use
+RESOURCE EIK_APP_INFO
+	{
+	menubar=r_pa_menubar;
+	hotkeys=r_pa_hotkeys;
+	}
+
+RESOURCE HOTKEYS r_pa_hotkeys
+	{
+	control=
+		{
+		HOTKEY { command=EPaCmdOpenFile; key='o'; },
+		HOTKEY { command=EEikCmdExit; key='e'; },
+		HOTKEY { command=EPaCmdRemove; key='d'; },
+		HOTKEY { command=EPaCmdPlaylist; key='l'; },
+		HOTKEY { command=EPaCmdDouble; key='m'; },
+		HOTKEY { command=EPaCmdPlay; key='p'; },
+		HOTKEY { command=EPaCmdStop; key='s'; },
+		HOTKEY { command=EPaCmdGoTo; key='g'; },
+		HOTKEY { command=EPaCmdPrefs; key='k'; }
+		};
+	shift_control=
+		{
+		HOTKEY { command=EPaCmdOpenFolder; key='o'; },
+		HOTKEY { command=EPaCmdSavePlaylist; key='s'; },
+		HOTKEY { command=EPaCmdClear; key='d'; },
+		HOTKEY { command=EPaCmdPause; key='p'; },
+		HOTKEY { command=EPaCmdPrev; key='b'; },
+		HOTKEY { command=EPaCmdNext; key='n'; },
+		HOTKEY { command=EPaCmdShuffle; key='x'; },
+		HOTKEY { command=EPaCmdRepeat; key='r'; },
+		HOTKEY { command=EPaCmdAbout; key='a'; }
+		};
+	}
+
+RESOURCE MENU_BAR r_pa_menubar
+	{
+	titles=
+		{
+		MENU_TITLE { menu_pane=r_pa_file_menu; txt="File"; },
+		MENU_TITLE { menu_pane=r_pa_edit_menu; txt="Edit"; },
+		MENU_TITLE { menu_pane=r_pa_view_menu; txt="View"; },
+		MENU_TITLE { menu_pane=r_pa_play_menu; txt="Play"; },
+		MENU_TITLE { menu_pane=r_pa_tools_menu; txt="Tools"; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_file_menu
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdOpenFile; txt="Open file"<KEllipsis>; },
+		MENU_ITEM { command=EPaCmdOpenFolder; txt="Open folder"<KEllipsis>; },
+		MENU_ITEM { command=EPaCmdAddFile; txt="Add file"<KEllipsis>; },
+		MENU_ITEM { command=EPaCmdAddFolder; txt="Add folder"<KEllipsis>; flags=EEikMenuItemSeparatorAfter; },
+		MENU_ITEM { command=EPaCmdSavePlaylist; txt="Save playlist"<KEllipsis>; flags=EEikMenuItemSeparatorAfter; },
+		MENU_ITEM { command=EEikCmdExit; txt="Close"; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_edit_menu
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdRemove; txt="Remove from playlist"; },
+		MENU_ITEM { command=EPaCmdClear; txt="Clear playlist"; },
+		MENU_ITEM { command=EPaCmdSort; txt="Sort by name"; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_view_menu
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdPlaylist; txt="Show playlist"; flags=EEikMenuItemCheckBox; },
+		MENU_ITEM { command=EPaCmdDouble; txt="Double size"; flags=EEikMenuItemCheckBox; },
+		MENU_ITEM { command=EPaCmdVisualiser; txt="Show visualiser"; flags=EEikMenuItemCheckBox; },
+		MENU_ITEM { command=EPaCmdOnTop; txt="Keep on top"; flags=EEikMenuItemCheckBox|EEikMenuItemSeparatorAfter; },
+		MENU_ITEM { cascade=r_pa_skin_menu; txt="Skin"; }
+		};
+	}
+
+// the skins found are added at run time, before Other skin
+RESOURCE MENU_PANE r_pa_skin_menu
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdSkinStandard; txt="Coda (standard)"; flags=EEikMenuItemRadioStart; },
+		MENU_ITEM { command=EPaCmdSkinEpoc; txt="EPOC (the theme's colours)"; flags=EEikMenuItemRadioEnd; },
+		MENU_ITEM { command=EPaCmdSkinOther; txt="Other skin"<KEllipsis>; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_play_menu
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdPlay; txt="Play"; },
+		MENU_ITEM { command=EPaCmdPause; txt="Pause"; },
+		MENU_ITEM { command=EPaCmdStop; txt="Stop"; flags=EEikMenuItemSeparatorAfter; },
+		MENU_ITEM { command=EPaCmdPrev; txt="Previous track"; },
+		MENU_ITEM { command=EPaCmdNext; txt="Next track"; },
+		MENU_ITEM { command=EPaCmdGoTo; txt="Go to time"<KEllipsis>; flags=EEikMenuItemSeparatorAfter; },
+		MENU_ITEM { command=EPaCmdShuffle; txt="Shuffle"; flags=EEikMenuItemCheckBox; },
+		MENU_ITEM { command=EPaCmdRepeat; txt="Repeat"; flags=EEikMenuItemCheckBox; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_tools_menu
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdPrefs; txt="Preferences"<KEllipsis>; },
+		MENU_ITEM { command=EPaCmdSpeedTest; txt="Speed test"; flags=EEikMenuItemSeparatorAfter; },
+		MENU_ITEM { command=EPaCmdAbout; txt="About PsiAmp"; }
+		};
+	}
+
+// the playlist's buttons (ADD, REM, SEL, MISC, LIST) pop these up
+RESOURCE MENU_PANE r_pa_add_popup
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdAddFile; txt="Add file"<KEllipsis>; },
+		MENU_ITEM { command=EPaCmdAddFolder; txt="Add folder"<KEllipsis>; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_rem_popup
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdRemove; txt="Remove from playlist"; },
+		MENU_ITEM { command=EPaCmdClear; txt="Clear playlist"; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_sel_popup
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdPlaySelected; txt="Play"; },
+		MENU_ITEM { command=EPaCmdRemove; txt="Remove from playlist"; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_misc_popup
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdSort; txt="Sort by name"; },
+		MENU_ITEM { command=EPaCmdShuffle; txt="Shuffle"; flags=EEikMenuItemCheckBox; },
+		MENU_ITEM { command=EPaCmdRepeat; txt="Repeat"; flags=EEikMenuItemCheckBox; }
+		};
+	}
+
+RESOURCE MENU_PANE r_pa_list_popup
+	{
+	items=
+		{
+		MENU_ITEM { command=EPaCmdOpenFile; txt="Open file"<KEllipsis>; },
+		MENU_ITEM { command=EPaCmdOpenFolder; txt="Open folder"<KEllipsis>; },
+		MENU_ITEM { command=EPaCmdSavePlaylist; txt="Save playlist"<KEllipsis>; }
+		};
+	}
+
+RESOURCE DIALOG r_pa_goto_dialog
+	{
+	title="Go to time";
+	flags=EEikDialogFlagWait;
+	buttons=R_EIK_BUTTONS_CANCEL_OK;
+	items=
+		{
+		DLG_LINE { type=EEikCtDurationEditor; prompt="Time"; id=EPaDlgTime;
+			control=DURATION_EDITOR { minDuration=DURATION { seconds=0; }; maxDuration=DURATION { seconds=59; }; flags=0; }; trailer="hh:mm:ss"; }
+		};
+	}
+
+RESOURCE DIALOG r_pa_prefs_dialog
+	{
+	title="Preferences";
+	flags=EEikDialogFlagWait;
+	buttons=R_EIK_BUTTONS_CANCEL_OK;
+	items=
+		{
+		DLG_LINE { type=EEikCtChoiceList; prompt="Keys"; id=EPaDlgKeys;
+			control=CHOICELIST { array_id=r_pa_offon; maxdisplaychar=16; }; },
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgKeysNote;
+			control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=40; txt="In other programs: Ctrl+Fn+A, X, Z, B"; }; },
+		DLG_LINE { type=EEikCtChoiceList; prompt="Visualiser"; id=EPaDlgVis;
+			control=CHOICELIST { array_id=r_pa_vis_modes; maxdisplaychar=16; }; },
+		DLG_LINE { type=EEikCtChoiceList; prompt="Time"; id=EPaDlgTimeShown;
+			control=CHOICELIST { array_id=r_pa_time_modes; maxdisplaychar=16; }; }
+		};
+	}
+
+RESOURCE ARRAY r_pa_offon { items= { LBUF { txt="Off"; }, LBUF { txt="On"; } }; }
+RESOURCE ARRAY r_pa_vis_modes { items= { LBUF { txt="Spectrum"; }, LBUF { txt="Oscilloscope"; }, LBUF { txt="Off"; } }; }
+RESOURCE ARRAY r_pa_time_modes { items= { LBUF { txt="Elapsed"; }, LBUF { txt="Remaining"; } }; }
+
+// Tools > About PsiAmp. The version, the copyright sign (0xa9 in the
+// Psion's fonts), Helix's notice and where the source is (its licence asks
+// for both in the About box) are set at run time.
+RESOURCE DIALOG r_pa_about_dialog
+	{
+	title="About PsiAmp";
+	flags=EEikDialogFlagWait;
+	buttons=R_EIK_BUTTONS_CONTINUE;
+	items=
+		{
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutName; control=LABEL { standard_font=EEikLabelFontLegend; reserve_length=20; txt="PsiAmp"; }; },
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutText; control=LABEL { txt="MP3 and WAV player, with skins"; }; },
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutCopy; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=44; txt="-"; }; },
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutHelix; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=44; txt="-"; }; },
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutHelix2; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=66; txt="-"; }; },
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutSource; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=50; txt="-"; }; },
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutSource2; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=40; txt="-"; }; }
+		};
+	}
+
+RESOURCE TBUF r_pa_open_title { buf="Open file"; }
+RESOURCE TBUF r_pa_open_folder_title { buf="Open folder - choose a file in it"; }
+RESOURCE TBUF r_pa_add_title { buf="Add file"; }
+RESOURCE TBUF r_pa_add_folder_title { buf="Add folder - choose a file in it"; }
+RESOURCE TBUF r_pa_skin_title { buf="Open skin"; }
+RESOURCE TBUF r_pa_save_title { buf="Save playlist"; }

@@ -1,0 +1,34 @@
+# build output (objects go to the SDK's folders and build/); dist/ holds the
+# built program, and only dist/PsiAmp.sis is committed
+/build/
+/dist/
+*.o
+*.obj
+*.lib
+*.map
+*.marm
+*.rpp
+__pycache__/
+*.pyc
+# the host test's program
+/test/host/padec
+
+# other people's skins (.wsz) are never committed: only PsiAmp's own,
+# made by pkg/mkskin.py at build time
+*.wsz
+
+# local debugging / device data
+*.psi
+screenshots/
+*.log
+*.log.old
+*_local.*
+.env
+.env.*
+
+# editors / OS
+.DS_Store
+*~
+*.swp
+.claude/
+CLAUDE.local.md

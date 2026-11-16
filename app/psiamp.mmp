@@ -1,0 +1,19 @@
+// PSIAMP.MMP - PsiAmp.app, the MP3 player (Coda's ROM, Z:\System\Apps\PsiAmp)
+// build.sh copies app/ into build/app and makes psiamphx.lib (Helix, the
+// sound path, the skin reader and zlib's inflate: C built for the SA-1100,
+// engine/) in the SDK's release folder, which the link takes as a library.
+TARGET        psiamp.app
+TARGETTYPE    app
+UID           0x1000006c 0x01000AFA
+TARGETPATH    \system\apps\psiamp
+
+PROJECT       ptproj
+SUBPROJECT    psiamp
+
+SOURCE        psiamp.cpp paengine.cpp paskin.cpp paview.cpp pashim.cpp
+RESOURCE      psiamp.rss
+
+USERINCLUDE   \ptproj\psiamp
+SYSTEMINCLUDE \epoc32\include
+
+LIBRARY       psiamphx.lib euser.lib efsrv.lib apparc.lib apgrfx.lib cone.lib eikon.lib ws32.lib gdi.lib fbscli.lib bafl.lib

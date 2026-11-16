@@ -1,0 +1,26 @@
+Helix fixed-point MP3 decoder, as used in PsiAmp (Coda for the Psion netBook)
+
+Taken from https://github.com/ultraembedded/libhelix-mp3 (commit 0a0e0673,
+31 August 2019), a copy of RealNetworks' Helix DNA fixed-point MP3 decoder,
+licensed under the RealNetworks Public Source License 1.0 (RPSL.txt) or the
+RealNetworks Community Source License (RCSL.txt). The project files
+(real/projects, pub/mpadecobjfixpt.h) are left out.
+
+Changes (16 November 2026), each file marked at its top:
+- real/assembly.h: two platform blocks added: PSIAMP_ARM (the StrongARM
+  SA-1100: MULSHIFT32 by smull, MADD64 by smlal, SAR64 and CLZ in C, so no
+  64-bit helper of libgcc is called) and PSIAMP_HOST (portable C, for the
+  tests on the PC). The copy's own gcc ARM block is left as it was (it
+  lacks Word64, MADD64 and SAR64 outside ARM7DI).
+- mp3dec.c, pub/mp3dec.h, pub/mp3common.h: MP3SetBandLimit(decoder, hz)
+  (a field in MP3DecInfo); with it set, each granule's spectrum above about
+  hz (rounded up a block of 18 lines, one block more for the filter bank)
+  is zeroed after Huffman decoding and nonZeroBound lowered, so dequantising,
+  stereo processing and the IMDCT skip it. PsiAmp sets 4400 Hz: the
+  netBook's sound is 8,000 samples a second.
+- real/dqchan.c, real/imdct.c: lookup tables that were writable made const
+  (a program DLL on EPOC R5 cannot have writable static data).
+
+Object code notice (RPSL Exhibit A), shown in PsiAmp's About box:
+Helix DNA Client technology included. Copyright (c) RealNetworks, Inc.,
+1995-2002. All rights reserved.

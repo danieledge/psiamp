@@ -1,0 +1,22 @@
+; PsiAmp 0.04: an MP3 and WAV player for the Psion netBook (EPOC R5), in
+; the look of the classic skinned players. Built by build.sh.
+; Source: https://github.com/danieledge/psiamp
+&EN
+; Two-digit versions: the EPOC installer compares
+; major.minor only.
+#{"PsiAmp"},(0x01000AFA),0,4,0
+"PsiAmp.app"-"!:\System\Apps\PsiAmp\PsiAmp.app"
+"PsiAmp.rsc"-"!:\System\Apps\PsiAmp\PsiAmp.rsc"
+"PsiAmp.aif"-"!:\System\Apps\PsiAmp\PsiAmp.aif"
+"Coda.wsz"-"!:\System\Apps\PsiAmp\Coda.wsz"
+"Epoc.wsz"-"!:\System\Apps\PsiAmp\Epoc.wsz"
+; the sample, put in PsiAmp's first playlist
+"Coda.mp3"-"!:\System\Apps\PsiAmp\Coda.mp3"
+; the licences: MIT, and Helix's RPSL (its object code notice is in About)
+"Licences.txt"-"!:\System\Apps\PsiAmp\Licences.txt"
+; the recogniser last, once the program it names is in place
+"PsiAmp.mdl"-"!:\System\Recogs\PsiAmp.mdl"
+; its settings, playlist and log: not installed, removed with the program
+""-"C:\System\Apps\PsiAmp\PsiAmp.ini",FN
+""-"C:\System\Apps\PsiAmp\PsiAmp.m3u",FN
+""-"C:\System\Apps\PsiAmp\PsiAmp.log",FN

@@ -1,10 +1,10 @@
-; PsiAmp 0.04: an MP3 and WAV player for the Psion netBook (EPOC R5), in
+; PsiAmp 0.05: an MP3 and WAV player for the Psion netBook (EPOC R5), in
 ; the look of the classic skinned players. Built by build.sh.
 ; Source: https://github.com/danieledge/psiamp
 &EN
 ; Two-digit versions: the EPOC installer compares
 ; major.minor only.
-#{"PsiAmp"},(0x01000AFA),0,4,0
+#{"PsiAmp"},(0x01000AFA),0,5,0
 "PsiAmp.app"-"!:\System\Apps\PsiAmp\PsiAmp.app"
 "PsiAmp.rsc"-"!:\System\Apps\PsiAmp\PsiAmp.rsc"
 "PsiAmp.aif"-"!:\System\Apps\PsiAmp\PsiAmp.aif"

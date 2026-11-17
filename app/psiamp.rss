@@ -45,6 +45,7 @@ RESOURCE HOTKEYS r_pa_hotkeys
 		};
 	shift_control=
 		{
+		HOTKEY { command=EPaCmdDouble; key='m'; },     // (Zoom out: the same switch)
 		HOTKEY { command=EPaCmdOpenFolder; key='o'; },
 		HOTKEY { command=EPaCmdSavePlaylist; key='s'; },
 		HOTKEY { command=EPaCmdClear; key='d'; },
@@ -237,7 +238,7 @@ RESOURCE DIALOG r_pa_about_dialog
 		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutCopy; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=44; txt="-"; }; },
 		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutHelix; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=44; txt="-"; }; },
 		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutHelix2; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=66; txt="-"; }; },
-		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutSource; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=50; txt="-"; }; },
+		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutSource; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=60; txt="-"; }; },
 		DLG_LINE { type=EEikCtLabel; id=EPaDlgAboutSource2; control=LABEL { standard_font=EEikLabelFontAnnotation; reserve_length=40; txt="-"; }; }
 		};
 	}

@@ -27,7 +27,7 @@ struct TPaKey { TUint iScan; TUint iCode; };
 static const TPaKey KPaKeys[4] = { { 'A', 'A' - '@' }, { 'X', 'X' - '@' }, { 'Z', 'Z' - '@' }, { 'B', 'B' - '@' } };
 const TUint KPaKeyMods = EModifierCtrl | EModifierFunc;
 const TUint KPaKeyMask = EModifierCtrl | EModifierFunc | EModifierShift;
-const TInt KPaMaxSkins = 6;
+const TInt KPaMaxSkins = 5;           // (Coda, EPOC, these and Other skin: 8 items, a menu's most)
 
 // ===========================================================================
 // Dialogs
@@ -47,7 +47,7 @@ private:
 		((CEikLabel*)Control(EPaDlgAboutHelix2))->SetTextL(_L("Copyright (c) RealNetworks, Inc., 1995-2002. All rights reserved."));
 		// and where the source is (RPSL 2.1(e)): PsiAmp's own code under MIT,
 		// Helix's under the RPSL
-		((CEikLabel*)Control(EPaDlgAboutSource))->SetTextL(_L("Source: MIT licence; Helix under the RPSL, at"));
+		((CEikLabel*)Control(EPaDlgAboutSource))->SetTextL(_L("Source: MIT licence; Helix under the RPSL; zlib licence, at"));
 		((CEikLabel*)Control(EPaDlgAboutSource2))->SetTextL(_L("https://github.com/danieledge/psiamp"));
 		}
 	};
@@ -988,7 +988,7 @@ void CPaAppUi::SetSkinL(const TDesC& aWsz, TBool aRedraw)
 			wsz.Append(KPaEpocName);
 			}
 		if (aRedraw)
-			iEikonEnv->BusyMsgL(_L("Opening skin…"), EHLeftVBottom, TTimeIntervalMicroSeconds32(300000));
+			iEikonEnv->BusyMsgL(_L("Opening skin\x85"), EHLeftVBottom, TTimeIntervalMicroSeconds32(300000));
 		TInt err = s->Load(iCoeEnv->FsSession(), wsz, coda, epoc);
 		if (aRedraw)
 			iEikonEnv->BusyMsgCancel();
@@ -1363,7 +1363,7 @@ void CPaAppUi::SpeedTestL()
 	TBool was = iEngine->State() == CPaEngine::EPlaying;
 	if (was)
 		iEngine->Pause();
-	iEikonEnv->BusyMsgL(_L("Decoding…"), EHLeftVBottom, TTimeIntervalMicroSeconds32(0));
+	iEikonEnv->BusyMsgL(_L("Decoding\x85"), EHLeftVBottom, TTimeIntervalMicroSeconds32(0));
 	TInt sound = 0, taken = 0;
 	TInt err = iEngine->SpeedTest(60000, sound, taken);
 	iEikonEnv->BusyMsgCancel();

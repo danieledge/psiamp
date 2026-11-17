@@ -244,7 +244,8 @@ int pa_wav_parse(const unsigned char *b, int len, PaWavInfo *w)
 			if (w->format != 1 && w->format != 6 && w->format != 7) return -1;
 			return 0;
 		}
-		if (sz < 0) return -1;
+		/* (a size past the end of what is here: no overflow of at) */
+		if (sz < 0 || sz > len - at - 8) return -1;
 		at += 8 + sz + (sz & 1);
 	}
 	return -1;
@@ -304,6 +305,7 @@ int pa_id3v2_text(const unsigned char *b, int len, char *title, char *artist, in
 	if (b[5] & 0x40 && ver >= 3 && len >= 14) {   /* an extended header */
 		if (ver == 4) at += (b[10] << 21) | (b[11] << 14) | (b[12] << 7) | b[13];
 		else at += 4 + ((b[10] << 24) | (b[11] << 16) | (b[12] << 8) | b[13]);
+		if (at < 10 || at > end) return 0;        /* (a size that is not there) */
 	}
 	while (at + (ver == 2 ? 6 : 10) <= end) {
 		const unsigned char *f = b + at;
@@ -312,7 +314,7 @@ int pa_id3v2_text(const unsigned char *b, int len, char *title, char *artist, in
 		if (ver == 2) { sz = (f[3] << 16) | (f[4] << 8) | f[5]; hd = 6; }
 		else if (ver == 4) { sz = (f[4] << 21) | (f[5] << 14) | (f[6] << 7) | f[7]; hd = 10; }
 		else { sz = (f[4] << 24) | (f[5] << 16) | (f[6] << 8) | f[7]; hd = 10; }
-		if (sz <= 0 || at + hd + sz > end) break;
+		if (sz <= 0 || sz > end - at - hd) break;
 		if ((ver == 2 && f[0] == 'T' && f[1] == 'T' && f[2] == '2') ||
 			(ver != 2 && f[0] == 'T' && f[1] == 'I' && f[2] == 'T' && f[3] == '2'))
 			{ id3_text(f + hd, sz, title, cap); found = 1; }

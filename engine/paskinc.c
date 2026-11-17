@@ -23,7 +23,7 @@ int pa_zip_find(const unsigned char *z, int len, const char *want, PaZipEntry *e
 	for (i = 0; i < n; i++) {
 		int nl, xl, cl, k, j, base, match;
 		const unsigned char *h = z + cd;
-		if (cd < 0 || cd + 46 > len || rd32(h) != 0x02014b50) return -1;
+		if (cd < 0 || cd > len - 46 || rd32(h) != 0x02014b50) return -1;
 		nl = rd16(h + 28); xl = rd16(h + 30); cl = rd16(h + 32);
 		if (cd + 46 + nl > len) return -1;
 		/* the name's last part (skins are often zipped in a folder) */
@@ -34,13 +34,13 @@ int pa_zip_find(const unsigned char *z, int len, const char *want, PaZipEntry *e
 			if (base + j >= nl || lower(h[46 + base + j]) != lower((unsigned char)want[j])) { match = 0; break; }
 		if (match && nl > base) {
 			int loc = rd32(h + 42), lnl, lxl;
-			if (loc < 0 || loc + 30 > len || rd32(z + loc) != 0x04034b50) return -1;
+			if (loc < 0 || loc > len - 30 || rd32(z + loc) != 0x04034b50) return -1;
 			lnl = rd16(z + loc + 26); lxl = rd16(z + loc + 28);
 			e->method = rd16(h + 10);
 			e->csize = rd32(h + 20);
 			e->usize = rd32(h + 24);
 			e->offset = loc + 30 + lnl + lxl;
-			if (e->offset + e->csize > len || e->usize < 0 || e->usize > (4 << 20)) return -1;
+			if (e->offset > len || e->csize < 0 || e->csize > len - e->offset || e->usize < 0 || e->usize > (4 << 20)) return -1;
 			return 0;
 		}
 		cd += 46 + nl + xl + cl;
@@ -105,9 +105,11 @@ int pa_bmp_decode(const unsigned char *b, int len, unsigned char *rgb)
 		bpp = rd16(b + 28); comp = rd32(b + 30); ncol = rd32(b + 46); palEntry = 4;
 		if (rd32(b + 22) < 0) topdown = 1;
 	}
+	/* (sizes and places from the file: checked as numbers, before any pointer is made) */
+	if (hs > len - 14 || off < 0 || off > len) return -1;
 	pal = b + 14 + hs;
-	if (bpp <= 8 && !ncol) ncol = 1 << bpp;
-	if (bpp <= 8 && (pal + ncol * palEntry > b + len)) return -1;
+	if (bpp <= 8 && (ncol <= 0 || ncol > (1 << bpp))) ncol = 1 << bpp;
+	if (bpp <= 8 && ncol * palEntry > len - 14 - hs) return -1;
 	if (comp == 1 && bpp == 8) {           /* RLE8 */
 		const unsigned char *p = b + off, *e = b + len;
 		int i;

@@ -265,7 +265,11 @@ void CPaAppUi::LoadSettings()
 		return;
 	TPaSettings s;
 	TPckg<TPaSettings> p(s);
-	if (f.Read(p) == KErrNone && p.Length() == sizeof(s) && s.iVersion == 1)
+	// (a damaged file's values are not taken: a text longer than its room
+	// or a choice that is not in its list panics later)
+	if (f.Read(p) == KErrNone && p.Length() == sizeof(s) && s.iVersion == 1 &&
+		s.iSkin.MaxLength() == iSet.iSkin.MaxLength() && s.iSkin.Length() <= s.iSkin.MaxLength() &&
+		s.iVisMode >= 0 && s.iVisMode <= 2)
 		iSet = s;
 	f.Close();
 	}
@@ -366,6 +370,7 @@ void CPaAppUi::LoadListL(const TDesC& aM3u, TBool aAppend)
 		{
 		iList->Reset();
 		iTitles->Reset();
+		iCurrent = 0;
 		}
 	TParsePtrC base(aM3u);
 	TInt at = 0;
@@ -396,6 +401,8 @@ void CPaAppUi::LoadListL(const TDesC& aM3u, TBool aAppend)
 			TFileName full(base.DriveAndPath());
 			if (name.Length() && name[0] == '\\')
 				full = base.Drive();
+			if (full.Length() + name.Length() > full.MaxLength())
+				continue;                        // (too long to be a file's name)
 			full.Append(name);
 			name = full;
 			}
@@ -409,9 +416,29 @@ void CPaAppUi::SaveListL(const TDesC& aM3u)
 	RFs& fs = iCoeEnv->FsSession();
 	TParsePtrC p(aM3u);
 	fs.MkDirAll(p.DriveAndPath());
+	// written beside it and put in its place when whole, so a full disk
+	// does not leave half a playlist
+	TFileName tmp(aM3u);
+	if (tmp.Length() + 4 > tmp.MaxLength())
+		User::Leave(KErrBadName);
+	tmp.Append(_L(".tmp"));
 	RFile f;
-	User::LeaveIfError(f.Replace(fs, aM3u, EFileWrite));
+	User::LeaveIfError(f.Replace(fs, tmp, EFileWrite));
 	CleanupClosePushL(f);
+	TRAPD(err, WriteListL(f));
+	CleanupStack::PopAndDestroy();
+	if (err == KErrNone)
+		err = fs.Replace(tmp, aM3u);
+	if (err != KErrNone)
+		{
+		fs.Delete(tmp);
+		User::Leave(err);
+		}
+	}
+
+void CPaAppUi::WriteListL(RFile& aFile)
+	{
+	RFile& f = aFile;
 	User::LeaveIfError(f.Write(_L8("#EXTM3U\r\n")));
 	for (TInt i = 0; i < iList->Count(); i++)
 		{
@@ -420,7 +447,7 @@ void CPaAppUi::SaveListL(const TDesC& aM3u)
 		line.Append(_L8("\r\n"));
 		User::LeaveIfError(f.Write(line));
 		}
-	CleanupStack::PopAndDestroy();
+	User::LeaveIfError(f.Flush());
 	}
 
 // a tapped file: an .m3u becomes the playlist; a skin (.wsz) is put on; a
@@ -447,6 +474,7 @@ void CPaAppUi::OpenFileL(const TDesC& aFileName)
 		{
 		iList->Reset();
 		iTitles->Reset();
+		iCurrent = 0;
 		AddFileL(aFileName);
 		}
 	iListWin->SetSelected(0);
@@ -1079,6 +1107,7 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 			iEngine->Close();
 			iList->Reset();
 			iTitles->Reset();
+			iCurrent = 0;                        // (a folder with no sound files leaves an empty list)
 			was = 0;
 			}
 		AddFolderL(p.DriveAndPath());
@@ -1196,6 +1225,8 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 		if (iSet.iPlaylist)
 			iListWin->Compose();
 		break;
+	case EEikCmdZoomIn:                          // the Zoom icons beside the screen:
+	case EEikCmdZoomOut:                         // the two sizes, round
 	case EPaCmdDouble:
 		iSet.iDouble = !iSet.iDouble;
 		iSet.iMainX = iSet.iMainY = iSet.iListX = iSet.iListY = -1;     // (the standard places again)

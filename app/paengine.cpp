@@ -139,7 +139,7 @@ TInt CPaDecoder::OpenWav()
 	TInt block = iWavInfo.chans * iWavInfo.bits / 8;
 	iDataStart = iWavInfo.dataStart;
 	iDataEnd = iDataStart + iWavInfo.dataLen;
-	if (iDataEnd > iFileSize || iWavInfo.dataLen <= 0)
+	if (iWavInfo.dataLen <= 0 || iWavInfo.dataLen > iFileSize - iDataStart)
 		iDataEnd = iFileSize;
 	iDataEnd -= (iDataEnd - iDataStart) % block;
 	TInt frames = (iDataEnd - iDataStart) / block;
@@ -180,7 +180,12 @@ TInt CPaDecoder::OpenMp3()
 		Latin1(t, title);
 		Latin1(a, artist);
 		if (a.Length())
-			iTitle.Format(_L("%S - %S"), &a, &t);
+			{
+			// (two long tags are longer than the title's room: USER 11)
+			TBuf<210> both;
+			both.Format(_L("%S - %S"), &a, &t);
+			iTitle = PaLeft(both, iTitle.MaxLength());
+			}
 		else
 			iTitle = t;
 		}

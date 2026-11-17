@@ -379,6 +379,7 @@ private:
 	void SaveSettings();
 	void LoadListL(const TDesC& aM3u, TBool aAppend);
 	void SaveListL(const TDesC& aM3u);
+	void WriteListL(RFile& aFile);
 	void AddFileL(const TDesC& aName);
 	void AddFolderL(const TDesC& aFolder);
 	TBool AskFileL(TFileName& aName, TInt aTitle);

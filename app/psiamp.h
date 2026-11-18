@@ -28,7 +28,7 @@
 #include "pacore.h"
 
 const TUid KUidPsiAmp = { 0x01000AFA };
-_LIT(KPaVersion, "0.05");
+_LIT(KPaVersion, "0.06");
 _LIT(KPaDir, "C:\\System\\Apps\\PsiAmp\\");
 _LIT(KPaIni, "C:\\System\\Apps\\PsiAmp\\PsiAmp.ini");
 _LIT(KPaListFile, "C:\\System\\Apps\\PsiAmp\\PsiAmp.m3u");
@@ -417,6 +417,7 @@ private:
 	TInt32 iCap[8];
 	TInt iCapCount;
 	TInt64 iSeed;
+	TBool iReady;                                // (0.06) ConstructL finished: only then is there anything to save
 	TBool iHiding;                               // put away by the user (not kept on top)
 	TInt iTickCount;
 	TTime iLastToggle;

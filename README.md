@@ -10,9 +10,13 @@ PsiAmp is part of [Coda](https://github.com/danieledge/PsiCoda), a new ROM for t
 - Draws **classic Winamp 2 skins** (`.wsz`), its own two (Coda and EPOC) built in.
 - Telephone-quality sound: that is all the netBook's sound driver offers (see *What you hear*).
 
-UID 0x01000AFA (the recogniser PsiAmp.mdl: 0x01000AFB). Version 0.05 (not released yet; the download is 0.04).
+UID 0x01000AFA (the recogniser PsiAmp.mdl: 0x01000AFB). Version 0.06 (not released yet; the download is 0.04).
 
 [![Download PsiAmp.sis](https://img.shields.io/badge/Download-PsiAmp.sis-2ea44f?logo=github)](dist/PsiAmp.sis)
+
+## What's new in 0.06
+
+- Started with very little memory free, PsiAmp says "Not enough memory" and closes, where it used to end with "Program closed, KERN-EXEC 3". A start that fails no longer writes an empty playlist over the saved one.
 
 ## What's new in 0.05
 

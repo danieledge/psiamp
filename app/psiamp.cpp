@@ -119,14 +119,17 @@ CFileStore* CPaDocument::OpenFileL(TBool aDoOpen, const TDesC& aFilename, RFs& /
 
 CPaAppUi::~CPaAppUi()
 	{
-	if (iEngine)
+	// (0.06) only a PsiAmp that started saves: one that could not (not
+	// enough memory for the skin, say) ended here with the playlist not yet
+	// read, and wrote the empty one over the saved one
+	if (iReady)
 		{
 		iSet.iTrack = iCurrent;
 		iSet.iPosMs = iEngine->IsOpen() ? iEngine->PositionMs() : 0;
+		SaveSettings();
+		TRAPD(err, SaveListL(KPaListFile));
+		(void)err;
 		}
-	SaveSettings();
-	TRAPD(err, SaveListL(KPaListFile));
-	(void)err;
 	ReleaseKeys();
 	if (iTicker)
 		iTicker->Cancel();
@@ -200,6 +203,7 @@ void CPaAppUi::ConstructL()
 		}
 	iListWin->SetSelected(iCurrent);
 	iMain->Compose(ETrue);
+	iReady = ETrue;
 	}
 
 // Started with no file (the Extras bar, the System screen's program list): no
@@ -805,6 +809,12 @@ void CPaAppUi::HideL()
 void CPaAppUi::HandleForegroundEventL(TBool aForeground)
 	{
 	iInFront = aForeground;
+	// (0.06) not before ConstructL has finished: when it fails (not enough
+	// memory for the windows) Eikon says so in a dialog, the program comes
+	// to the front for it with iListWin or iTicker still NULL, and this was
+	// KERN-EXEC 3 in place of "Not enough memory"
+	if (!iReady)
+		return;
 	iMain->SetActive(aForeground);
 	iListWin->SetActive(aForeground);
 	if (aForeground)

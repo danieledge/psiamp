@@ -257,7 +257,11 @@ void CPaAppUi::Log(const TDesC& aText)
 
 void CPaAppUi::LoadSettings()
 	{
-	Mem::FillZ(&iSet, sizeof(iSet));
+	// (0.07) the numbers zeroed, not the skin's name: Mem::FillZ over the
+	// whole record set iSkin's maximum length to 0, so the skin chosen was
+	// shown but never kept (Coda again at the next start)
+	Mem::FillZ(&iSet, _FOFF(TPaSettings, iSkin));
+	iSet.iSkin.Zero();
 	iSet.iVersion = 1;
 	iSet.iVolume = 80;
 	iSet.iDouble = 1;
@@ -271,10 +275,15 @@ void CPaAppUi::LoadSettings()
 	TPckg<TPaSettings> p(s);
 	// (a damaged file's values are not taken: a text longer than its room
 	// or a choice that is not in its list panics later)
+	// (a file from 0.06 or before has the skin's maximum length 0 and no
+	// skin: its numbers are taken)
 	if (f.Read(p) == KErrNone && p.Length() == sizeof(s) && s.iVersion == 1 &&
-		s.iSkin.MaxLength() == iSet.iSkin.MaxLength() && s.iSkin.Length() <= s.iSkin.MaxLength() &&
-		s.iVisMode >= 0 && s.iVisMode <= 2)
-		iSet = s;
+		(s.iSkin.MaxLength() == iSet.iSkin.MaxLength() || s.iSkin.MaxLength() == 0) &&
+		s.iSkin.Length() <= s.iSkin.MaxLength() && s.iVisMode >= 0 && s.iVisMode <= 2)
+		{
+		Mem::Copy(&iSet, &s, _FOFF(TPaSettings, iSkin));
+		iSet.iSkin.Copy(s.iSkin);
+		}
 	f.Close();
 	}
 
@@ -321,6 +330,13 @@ void CPaAppUi::EntryName(TInt aIndex, TDes& aName) const
 
 void CPaAppUi::AddFileL(const TDesC& aName)
 	{
+	// (0.07) only a whole name with its disk and folder: the list's names
+	// are parsed (TParsePtrC) to show and play them, and one that does not
+	// parse panicked PsiAmp (FSCLIENT 24), from a playlist line such as
+	// "D:Music\a.mp3"
+	TParse p;
+	if (p.Set(aName, NULL, NULL) != KErrNone || !p.DrivePresent() || aName.Length() < 3 || aName[2] != '\\')
+		return;
 	iList->AppendL(aName);
 	iTitles->AppendL(KNullDesC);
 	}
@@ -487,11 +503,30 @@ void CPaAppUi::OpenFileL(const TDesC& aFileName)
 	ShowL();
 	}
 
+// (0.07) a name the file dialog can start from: whole, with its disk and
+// folder ("D:\Music\a.mp3", "D:\"), on a disk that is there. EIKON's dialog
+// panicked (USER 22) on one without a disk, such as the EPOC skin's
+// setting "*EPOC"
+TBool CPaAppUi::StartsWell(const TDesC& aName)
+	{
+	TParse p;
+	if (p.Set(aName, NULL, NULL) != KErrNone || !p.DrivePresent() || !p.PathPresent())
+		return EFalse;
+	TInt drive;
+	TVolumeInfo v;
+	return RFs::CharToDrive(aName[0], drive) == KErrNone && iCoeEnv->FsSession().Volume(v, drive) == KErrNone;
+	}
+
 TBool CPaAppUi::AskFileL(TFileName& aName, TInt aTitle)
 	{
-	if (aName.Length() == 0)
+	// (0.07) every caller: a start that will not do is the playing file's,
+	// else C:\Documents
+	if (!StartsWell(aName))
 		{
-		aName = iList->Count() ? (*iList)[iCurrent] : TPtrC(_L("C:\\Documents\\"));
+		if (iList->Count() && iCurrent >= 0 && iCurrent < iList->Count() && StartsWell((*iList)[iCurrent]))
+			aName = (*iList)[iCurrent];
+		else
+			aName = _L("C:\\Documents\\");
 		}
 	CEikFileOpenDialog* d = new(ELeave) CEikFileOpenDialog(&aName, aTitle);
 	return d->ExecuteLD(R_EIK_DIALOG_FILE_OPEN);
@@ -1258,7 +1293,9 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 		break;
 	case EPaCmdSkinOther:
 		{
-		TFileName name(iSet.iSkin.Length() ? TPtrC(iSet.iSkin) : TPtrC(_L("D:\\")));
+		// (0.07) from the skin in use when it is a file, else D:\ (the EPOC
+		// skin's setting is "*EPOC", not a file's name)
+		TFileName name(iSet.iSkin.Length() && iSet.iSkin != KPaEpocSetting ? TPtrC(iSet.iSkin) : TPtrC(_L("D:\\")));
 		if (!AskFileL(name, R_PA_SKIN_TITLE))
 			break;
 		SetSkinL(name, ETrue);

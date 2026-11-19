@@ -28,7 +28,7 @@
 #include "pacore.h"
 
 const TUid KUidPsiAmp = { 0x01000AFA };
-_LIT(KPaVersion, "0.06");
+_LIT(KPaVersion, "0.07");
 _LIT(KPaDir, "C:\\System\\Apps\\PsiAmp\\");
 _LIT(KPaIni, "C:\\System\\Apps\\PsiAmp\\PsiAmp.ini");
 _LIT(KPaListFile, "C:\\System\\Apps\\PsiAmp\\PsiAmp.m3u");
@@ -382,6 +382,7 @@ private:
 	void WriteListL(RFile& aFile);
 	void AddFileL(const TDesC& aName);
 	void AddFolderL(const TDesC& aFolder);
+	TBool StartsWell(const TDesC& aName);
 	TBool AskFileL(TFileName& aName, TInt aTitle);
 	void NextL(TBool aUser);
 	void PrevL();

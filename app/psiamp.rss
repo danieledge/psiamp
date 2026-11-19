@@ -11,11 +11,15 @@ NAME PSAM
 #include <eikdialg.rh>
 #include <eikdialg.hrh>
 #include <eikchlst.rh>
+#include <eikrted.rh>
+#include <eikedwin.rh>
+#include <eikedwin.hrh>
 #include <eikmfne.rh>
 #include <eikmfne.hrh>
 #include <eikkeys.h>
 #include <eikon.rsg>
 #include "psiamp.hrh"
+#include "psihelp.hrh"
 
 RESOURCE RSS_SIGNATURE { }
 
@@ -56,6 +60,7 @@ RESOURCE HOTKEYS r_pa_hotkeys
 		HOTKEY { command=EPaCmdNext; key='n'; },
 		HOTKEY { command=EPaCmdShuffle; key='x'; },
 		HOTKEY { command=EPaCmdRepeat; key='r'; },
+		HOTKEY { command=EPaCmdHelp; key='h'; },
 		HOTKEY { command=EPaCmdAbout; key='a'; }
 		};
 	}
@@ -139,6 +144,7 @@ RESOURCE MENU_PANE r_pa_tools_menu
 		{
 		MENU_ITEM { command=EPaCmdPrefs; txt="Preferences"<KEllipsis>; },
 		MENU_ITEM { command=EPaCmdSpeedTest; txt="Speed test"; flags=EEikMenuItemSeparatorAfter; },
+		MENU_ITEM { command=EPaCmdHelp; txt="Help on PsiAmp"; },
 		MENU_ITEM { command=EPaCmdAbout; txt="About PsiAmp"; }
 		};
 	}
@@ -252,3 +258,6 @@ RESOURCE TBUF r_pa_add_title { buf="Add file"; }
 RESOURCE TBUF r_pa_add_folder_title { buf="Add folder - choose a file in it"; }
 RESOURCE TBUF r_pa_skin_title { buf="Open skin"; }
 RESOURCE TBUF r_pa_save_title { buf="Save playlist"; }
+
+// Tools > Help on PsiAmp (Shift+Ctrl+H): the topics are in psiamp.cpp
+#include "psihelp.rssi"

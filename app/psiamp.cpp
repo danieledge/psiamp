@@ -22,6 +22,9 @@
 #include <t32alm.h>
 #include <psiamp.rsg>
 #include "psiamp.h"
+#include "psihelp.h"                 // Tools > Help on PsiAmp (Coda's Help dialog)
+#include "psisafe.h"                 // settings written beside, then put in place
+#include "psierr.h"                  // an error as words for a message
 
 // the keys PsiAmp takes in every program (with Ctrl and Fn held, as Coda's
 // screenshot key, Ctrl+Fn+P): show or put away, play or pause, previous, next
@@ -34,6 +37,44 @@ const TInt KPaMaxSkins = 5;           // (Coda, EPOC, these and Other skin: 8 it
 // ===========================================================================
 // Dialogs
 // ===========================================================================
+
+// Tools > Help on PsiAmp (Shift+Ctrl+H). British English, the user's words,
+// the keys as the keyboard prints them; what the code does, nothing more
+static const TPsiHelpTopic KPaHelp[] =
+	{
+	{ "Playing",
+	  "PsiAmp plays MP3 and WAV files and M3U playlists. Tap one on the System screen, or use "
+	  "File > Open file (Ctrl+O) or Open folder (Shift+Ctrl+O). Add file and Add folder put more on "
+	  "the playlist.\n\n"
+	  "The buttons play, pause and stop; so do Space, X, C and V. Left and Right move 5 s in the "
+	  "track, Ctrl+Left and Ctrl+Right (or Z and B) go to the previous and next track, and + and - "
+	  "set the volume. Play > Go to time (Ctrl+G) goes to a time in the track.\n\n"
+	  "Shuffle (Shift+Ctrl+X) and Repeat (Shift+Ctrl+R) are on the Play menu. With Repeat off, "
+	  "PsiAmp stops at the end of the playlist, shuffled or not." },
+	{ "The playlist",
+	  "The playlist shows under the player (View > Show playlist, Ctrl+L). Up and Down choose a file, "
+	  "Enter plays it and Del takes it off; with the pen, one tap chooses and a second plays. The "
+	  "buttons under it add, remove, sort and save.\n\n"
+	  "File > Save playlist (Ctrl+S) saves it as an M3U file. PsiAmp keeps its playlist, and the "
+	  "place in the track, for next time." },
+	{ "In other programs",
+	  "PsiAmp plays on when it is put away: Esc, or the title bar's minimise or close button. "
+	  "File > Close (Ctrl+E) ends it.\n\n"
+	  "From any program, Ctrl+Fn+A shows PsiAmp or puts it away, Ctrl+Fn+X plays or pauses, "
+	  "Ctrl+Fn+Z goes to the previous track and Ctrl+Fn+B to the next. Tools > Preferences (Ctrl+K) "
+	  "turns these keys off.\n\n"
+	  "View > Keep on top keeps the player over other programs without taking their keys. While it "
+	  "plays, the netBook stays on, and PsiAmp pauses for an alarm." },
+	{ "Skins",
+	  "View > Skin chooses the look: Coda (the standard), EPOC (in the theme's colours), or a classic "
+	  "Winamp 2 skin (a .wsz file) in \\System\\Apps\\PsiAmp\\Skins\\ or \\Skins\\ on the Internal disk or "
+	  "the card; Other skin opens any other. K in the player goes round them.\n\n"
+	  "View > Double size (Ctrl+M) switches between the two sizes." },
+	{ "The sound",
+	  "The netBook plays sound at telephone quality only (8,000 samples a second, mono), so PsiAmp "
+	  "turns every file into that. Tools > Speed test says how much of the processor playing the "
+	  "file takes." },
+	};
 
 class CPaAboutDialog : public CEikDialog
 	{
@@ -157,6 +198,7 @@ CPaAppUi::~CPaAppUi()
 	delete iList;
 	delete iTitles;
 	delete iSkins;
+	delete iPlayed;
 	}
 
 void CPaAppUi::ConstructL()
@@ -320,13 +362,16 @@ void CPaAppUi::LoadSettings()
 
 void CPaAppUi::SaveSettings()
 	{
-	RFs& fs = iCoeEnv->FsSession();
-	fs.MkDirAll(KPaDir);
-	RFile f;
-	if (f.Replace(fs, KPaIni, EFileWrite) != KErrNone)
-		return;
-	f.Write(TPckgC<TPaSettings>(iSet));
-	f.Close();
+	// written beside it (PsiAmp.ini~), then put in its place: a full disk
+	// or a reset part way leaves the last settings as they were
+	TInt err = PsiSafeWrite(iCoeEnv->FsSession(), KPaIni, TPckgC<TPaSettings>(iSet));
+	if (err != KErrNone && err != iSaveErr)
+		{
+		TBuf<48> m;
+		m.Format(_L("settings not saved (%d)"), err);
+		Log(m);
+		}
+	iSaveErr = err;
 	}
 
 // ---- the playlist ---------------------------------------------------------
@@ -635,6 +680,7 @@ void CPaAppUi::PlayIndexL(TInt aIndex, TInt aStartMs)
 			Log(m);
 			iTitles->Delete(aIndex);
 			iTitles->InsertL(aIndex, iEngine->Title());
+			MarkPlayed(aIndex);
 			iEngine->Play();
 			iListWin->SetSelected(aIndex);
 			iMain->Compose(ETrue);
@@ -649,8 +695,15 @@ void CPaAppUi::PlayIndexL(TInt aIndex, TInt aStartMs)
 		else if (err == KErrNotSupported || err == KErrCorrupt)
 			m.Format(_L("Not an MP3 or WAV file PsiAmp plays - %S"), &nm);
 		else
-			m.Format(_L("Cannot open %S (%d)"), &nm, err);
+			{
+			m.Format(_L("Cannot open %S - "), &nm);
+			m.Append(PsiErrWords(err));
+			}
 		iEikonEnv->InfoMsg(m);
+		TBuf<16> num;
+		num.Format(_L(" (%d)"), err);           // (the number in the log only)
+		if (m.Length() + num.Length() <= m.MaxLength())
+			m.Append(num);
 		Log(m);
 		aIndex++;
 		aStartMs = 0;
@@ -669,9 +722,31 @@ void CPaAppUi::NextL(TBool aUser)
 	TInt next;
 	if (iSet.iShuffle && n > 1)
 		{
-		do
-			next = Math::Rand(iSeed) % n;
-		while (next == iCurrent);
+		// each file once, in a random order: with Repeat off it stops when
+		// all have played (it went on for ever); Repeat, or Next pressed,
+		// starts a new round
+		TInt left = Unplayed();
+		if (left == 0)
+			{
+			if (!iSet.iRepeat && !aUser)
+				{
+				iEngine->Stop();
+				ForgetPlayed();                  // (Play again: a new round)
+				iMain->Compose(ETrue);
+				iListWin->Compose();
+				return;
+				}
+			ForgetPlayed();
+			MarkPlayed(iCurrent);
+			left = n - 1;
+			}
+		TInt k = (TInt)(((TUint)Math::Rand(iSeed)) % (TUint)left);
+		next = -1;
+		for (TInt i = 0; i < n && next < 0; i++)
+			if (i != iCurrent && !Played(i) && k-- == 0)
+				next = i;
+		if (next < 0)
+			next = (iCurrent + 1) % n;
 		}
 	else
 		next = iCurrent + 1;
@@ -688,6 +763,48 @@ void CPaAppUi::NextL(TBool aUser)
 		next = 0;
 		}
 	PlayIndexL(next);
+	}
+
+// Shuffle's round: a byte a file, 1 once played. A list of another length
+// (files added or taken off) is a new round
+void CPaAppUi::MarkPlayed(TInt aIndex)
+	{
+	TInt n = iList->Count();
+	if (aIndex < 0 || aIndex >= n)
+		return;
+	if (!iPlayed || iPlayed->Length() != n)
+		{
+		delete iPlayed;
+		iPlayed = HBufC8::New(n);
+		if (!iPlayed)
+			return;                              // (no memory: no round; Unplayed says none are left)
+		iPlayed->Des().FillZ(n);
+		}
+	iPlayed->Des()[aIndex] = 1;
+	}
+
+void CPaAppUi::ForgetPlayed()
+	{
+	delete iPlayed;
+	iPlayed = NULL;
+	}
+
+TBool CPaAppUi::Played(TInt aIndex) const
+	{
+	return iPlayed && iPlayed->Length() == iList->Count() && (*iPlayed)[aIndex] != 0;
+	}
+
+// the files not played in this round, the one playing apart
+TInt CPaAppUi::Unplayed() const
+	{
+	TInt n = iList->Count();
+	if (!iPlayed || iPlayed->Length() != n)
+		return n - 1;                            // (a new round: all but the one playing)
+	TInt left = 0;
+	for (TInt i = 0; i < n; i++)
+		if (i != iCurrent && !(*iPlayed)[i])
+			left++;
+	return left;
 	}
 
 void CPaAppUi::PrevL()
@@ -1383,7 +1500,16 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 		if (p.Ext().Length() == 0)
 			name.Append(_L(".m3u"));
 		TRAPD(err, SaveListL(name));
-		iEikonEnv->InfoMsg(err == KErrNone ? _L("Saved") : _L("Cannot save the playlist"));
+		if (err == KErrNone)
+			iEikonEnv->InfoMsg(_L("Saved"));
+		else
+			{
+			TBuf<64> m;
+			PsiErrMsg(m, _L("Playlist not saved"), err);
+			iEikonEnv->InfoMsg(m);
+			m.Format(_L("playlist not saved (%d)"), err);
+			Log(m);
+			}
 		break;
 		}
 	case EPaCmdRemove:
@@ -1398,6 +1524,7 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 			iEngine->Close();
 		iList->Delete(i);
 		iTitles->Delete(i);
+		ForgetPlayed();                      // (the files after it have moved)
 		if (iCurrent > i)
 			iCurrent--;
 		if (iCurrent >= iList->Count())
@@ -1457,6 +1584,7 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 		for (TInt k = 0; k < iList->Count(); k++)
 			if (!(*iList)[k].CompareF(playing))
 				iCurrent = k;
+		ForgetPlayed();                      // (the files have moved)
 		iListWin->SetSelected(iCurrent);
 		iMain->Compose(ETrue);
 		break;
@@ -1536,6 +1664,8 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 		break;
 	case EPaCmdShuffle:
 		iSet.iShuffle = !iSet.iShuffle;
+		ForgetPlayed();                          // (a new round, from the file playing)
+		MarkPlayed(iCurrent);
 		iMain->Compose(ETrue);
 		iEikonEnv->InfoMsg(iSet.iShuffle ? _L("Shuffle on") : _L("Shuffle off"));
 		break;
@@ -1549,6 +1679,9 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 		break;
 	case EPaCmdSpeedTest:
 		SpeedTestL();
+		break;
+	case EPaCmdHelp:
+		PsiHelpL(KPaHelp, sizeof(KPaHelp) / sizeof(KPaHelp[0]), _L("Help on PsiAmp"), R_PSI_HELP_DIALOG);
 		break;
 	case EPaCmdAbout:
 		AboutL();

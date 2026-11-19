@@ -16,6 +16,10 @@ UID 0x01000AFA (the recogniser PsiAmp.mdl: 0x01000AFB). Version 0.07 (not releas
 
 ## What's new in 0.07
 
+- Tools > Help on PsiAmp (Shift+Ctrl+H): what PsiAmp does and its keys, in the same Help as Coda's other programs. About stays last on Tools, on Shift+Ctrl+A.
+- Shuffle plays each file once in a random order; with Repeat off it stops when all have played (it went on for ever).
+- The settings are written beside PsiAmp.ini and put in its place once whole, so a full disk or a reset part way through leaves the last ones.
+- Messages say why in words ("Cannot open a.mp3 - the card is not in", "No sound - not enough memory") rather than a number; the number goes to PsiAmp.log. The log has the sound device's details and play requests once a session, not for every track.
 - The skin you choose is kept: PsiAmp used to start in Coda again every time.
 - View > Skin > Other skin… with the EPOC skin in use opens the file dialog at D:\ (it closed PsiAmp).
 - A playlist line with a disk but no `\` after it (`D:Music\a.mp3`) is left out (it closed PsiAmp).
@@ -85,11 +89,12 @@ Install `dist/PsiAmp.sis` (to D: if you have a CF card). PsiAmp is on the Extras
 | Keep on top | View > Keep on top: the player stays over other programs without taking their keys; a tap brings it forward |
 | Skins | K cycles them; View > Skin: Coda (standard), EPOC (in the theme's colours), any `.wsz` in `\System\Apps\PsiAmp\Skins\` or `\Skins\` on C: or D:, or Other skin |
 | Speed test | Tools > Speed test: decodes a minute of the file in use as fast as it can and says how much of the processor playing it takes (also in the log) |
+| Help | Tools > Help on PsiAmp (Shift+Ctrl+H) |
 | About | Tools > About PsiAmp (Shift+Ctrl+A) |
 
 The time shows elapsed or, tapped (or in Preferences), remaining. A tap on the visualiser changes it: spectrum, oscilloscope, off.
 
-Settings are in `C:\System\Apps\PsiAmp\PsiAmp.ini`, the playlist in `PsiAmp.m3u` beside it, and a log (the sound device's capabilities, the first play requests, speed tests) in `PsiAmp.log`. On the first start the playlist holds the sample, Coda (`\System\Apps\PsiAmp\Coda.mp3`, beside the program).
+Settings are in `C:\System\Apps\PsiAmp\PsiAmp.ini`, the playlist in `PsiAmp.m3u` beside it, and a log (the sound device's capabilities and first play requests once a session, each track played, speed tests) in `PsiAmp.log`. On the first start the playlist holds the sample, Coda (`\System\Apps\PsiAmp\Coda.mp3`, beside the program).
 
 ## Skins
 

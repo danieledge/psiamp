@@ -32,7 +32,8 @@ enum TPaCommand
 	EPaCmdSpeedTest,
 	EPaCmdAbout,
 	EPaCmdHide,
-	EPaCmdPlaySelected
+	EPaCmdPlaySelected,
+	EPaCmdHelp
 	};
 
 enum TPaDlgLine

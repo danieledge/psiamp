@@ -30,6 +30,7 @@
 #include <e32math.h>
 #include <eikenv.h>
 #include "psiamp.h"
+#include "psierr.h"                  // an error as words for a message
 #include "paskinc.h"
 
 // ===========================================================================
@@ -544,7 +545,9 @@ TInt CPaEngine::OpenDevice()
 	iDev.Config(cfg);
 	m.Format(_L("sound device: open; caps service %x volume %x max volume %d max frequency %d; prepare %d; buffer %d, volume %d/%d"),
 		caps().iService, caps().iVolume, caps().iMaxVolume, caps().iMaxFrequency, err, cfg().iAlawBufferSize, cfg().iVolume, cfg().iVolumeValue);
-	iObserver.EngineLog(m);
+	if (!iOpenLogged)                            // (0.07) once a session: the same each time
+		iObserver.EngineLog(m);
+	iOpenLogged = ETrue;
 	iRequests = 0;
 	return KErrNone;
 	}
@@ -661,9 +664,11 @@ void CPaEngine::Play()
 			iObserver.EngineMessage(_L("Sound in use by another program"));
 		else
 			{
-			TBuf<48> m;
-			m.Format(_L("Cannot open the sound device (%d)"), err);
+			TBuf<64> m(_L("No sound - "));
+			m.Append(PsiErrWords(err));
 			iObserver.EngineMessage(m);
+			m.Format(_L("sound device: not opened (%d)"), err);
+			iObserver.EngineLog(m);
 			}
 		return;
 		}
@@ -772,8 +777,11 @@ void CPaEngine::Feed()
 		iClockSample = iSubmitted;
 		iDev.ResetBytesPlayed();
 		}
-	if (iRequests < 8)
+	// (0.07) the first four requests of the session only: logged for every
+	// track, they were 17 lines a track in a 16 KB log
+	if (iRequests < 4 && iLogged < 8)
 		{
+		iLogged++;
 		TBuf<80> m;
 		m.Format(_L("play %d: %d bytes from %d, written %d"), iRequests, n, iSubmitted, iWritten);
 		iObserver.EngineLog(m);
@@ -788,8 +796,9 @@ void CPaEngine::Feed()
 
 void CPaEngine::RunL()
 	{
-	if (iRequests <= 8)
+	if (iRequests <= 4 && iLogged < 8)
 		{
+		iLogged++;
 		TTime now;
 		now.UniversalTime();
 		TBuf<80> m;
@@ -799,9 +808,11 @@ void CPaEngine::RunL()
 		}
 	if (iStatus.Int() != KErrNone && iStatus.Int() != KErrCancel)
 		{
-		TBuf<48> m;
-		m.Format(_L("Sound device: %d"), iStatus.Int());
+		TBuf<64> m(_L("No sound - "));
+		m.Append(PsiErrWords(iStatus.Int()));
 		iObserver.EngineMessage(m);
+		m.Format(_L("sound device: a play request ended %d"), iStatus.Int());
+		iObserver.EngineLog(m);
 		}
 	Feed();
 	if (iState == EPlaying && !iEnded && !iIdle->IsActive())

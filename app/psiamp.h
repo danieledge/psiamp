@@ -133,6 +133,8 @@ private:
 	TInt iMaxVolume;
 	TBuf8<KChunk> iChunk;
 	TInt iRequests;                              // play requests made (the first few are logged)
+	TInt iLogged;                                // (0.07) request lines logged this session (8 at most)
+	TBool iOpenLogged;                           // (0.07) the device's details logged
 	TTime iRequestTime;
 	CPeriodic* iTimer;                           // the decoder's pump, the end, the watchdog
 	CIdle* iIdle;
@@ -392,6 +394,10 @@ private:
 	TBool StartsWell(const TDesC& aName);
 	TBool AskFileL(TFileName& aName, TInt aTitle);
 	void NextL(TBool aUser);
+	void MarkPlayed(TInt aIndex);                // shuffle's round (0.07)
+	void ForgetPlayed();
+	TBool Played(TInt aIndex) const;
+	TInt Unplayed() const;
 	void PrevL();
 	void GoToL();
 	void PrefsL();
@@ -440,6 +446,8 @@ private:
 	TTime iAlarmPausedAt;
 	TInt iTickCount;
 	TTime iLastToggle;
+	HBufC8* iPlayed;                             // (0.07) shuffle: the files played in this round
+	TInt iSaveErr;                               // the last settings save's result (logged once)
 	};
 
 class CPaDocument : public CEikDocument

@@ -14,9 +14,14 @@
 // display's tick, a frame at a time, up to 2 s ahead of the device.
 //
 // The device is held only while playing (pause and stop let it go), so that
-// alarms still sound. If it does not take a chunk within 3 s (the emulator's
-// netBook sound never completes a play request), PsiAmp plays on silently,
-// timed by the clock alone, and says so once.
+// alarms still sound. If it does not take a chunk within 3 s of the engine's
+// own ticks (the emulator's netBook sound never completes a play request),
+// PsiAmp plays on silently, timed by the clock alone, and says so once.
+// (0.07) The 3 s are counted in ticks of the engine's timer, which stands
+// still while the machine is off, not by the clock: a machine switched off
+// in mid-play used to come back silent for the rest of the session. And
+// the device is tried again at the next play (with the same handle: a
+// device that stalled may not close, the emulator's never does).
 //
 // Starting, a second is decoded before the first chunk goes out: in the
 // emulator, a driver run dry after its first chunk stopped the whole machine.
@@ -286,11 +291,24 @@ TInt CPaDecoder::Seek(TInt aMs)
 		}
 	else if (iHaveToc && iDurationMs > 0)
 		{
-		// the table: 100 points, each a 256th of the file
-		TInt pc = aMs / (iDurationMs / 100 + 1);
+		// the table: 100 points (each a 256th of the file), and (0.07)
+		// between two points in proportion, as the players do: it was the
+		// point below, so a seek snapped back to the last whole 1% (36 s
+		// in an hour's file)
+		TInt64 x = TInt64(aMs) * TInt64(100000) / TInt64(iDurationMs);   // the place, in thousandths of 1%
+		TInt at = x.GetTInt();
+		TInt pc = at / 1000, frac = at % 1000;
 		if (pc > 99)
+			{
 			pc = 99;
-		byte = ((iDataEnd - iDataStart) / 256) * iToc[pc];
+			frac = 1000;
+			}
+		TInt fa = iToc[pc], fb = pc < 99 ? iToc[pc + 1] : 256;
+		if (fb < fa)
+			fb = fa;
+		// (fa * 1000 + (fb - fa) * frac) is under 256,000; the file in 256ths
+		TInt64 b = TInt64(iDataEnd - iDataStart) * TInt64(fa * 1000 + (fb - fa) * frac) / TInt64(256000);
+		byte = b.GetTInt();
 		}
 	else
 		byte = aMs * (iKbps / 8);
@@ -447,7 +465,7 @@ TInt CPaDecoder::Decode(TInt16* aOut, TInt aMax)
 // The engine
 // ===========================================================================
 
-const TInt KPaWatchdog = 3000000;                // a play request not done in this: no sound
+const TInt KPaWatchdogTicks = 30;               // a play request not done in 30 of the timer's 0.1 s ticks: no sound
 
 CPaEngine::CPaEngine(RFs& aFs, MPaEngineObserver& aObserver)
 	: CActive(EPriorityHigh), iFs(aFs), iObserver(aObserver), iVolume(80)
@@ -492,7 +510,22 @@ TInt CPaEngine::OpenDevice()
 	{
 	if (iDevOpen || iSilent)
 		return KErrNone;
-	TInt err = iDev.Open();
+	TInt err = KErrNone;
+	if (iDevHeld)
+		{
+		// (0.07) the handle kept after a stall: tried again
+		iDevHeld = EFalse;
+		iDevOpen = ETrue;
+		SetVolume(iVolume);
+		err = iDev.PreparePlayAlawBuffer();
+		iDev.ResetBytesPlayed();
+		TBuf<48> m0;
+		m0.Format(_L("sound device: tried again; prepare %d"), err);
+		iObserver.EngineLog(m0);
+		iRequests = 0;
+		return KErrNone;
+		}
+	err = iDev.Open();
 	TBuf<160> m;
 	if (err != KErrNone)
 		{
@@ -619,6 +652,8 @@ void CPaEngine::Play()
 		iDec->Seek(0);
 		Restart(0);
 		}
+	// (0.07) silent after a stall: the device again
+	iSilent = EFalse;
 	TInt err = OpenDevice();
 	if (err != KErrNone && !iSilent)
 		{
@@ -746,6 +781,7 @@ void CPaEngine::Feed()
 	iRequests++;
 	iDev.PlayAlawData(iStatus, iChunk);
 	iRequestTime.UniversalTime();
+	iRequestTicks = 0;
 	iSubmitted += n;
 	SetActive();
 	}
@@ -783,12 +819,14 @@ void CPaEngine::GoSilent()
 	if (iDevOpen)
 		{
 		// flushed, and left open: a device that does not take sound may not
-		// close either (the emulator's: RDevSound::Close never returns)
+		// close either (the emulator's: RDevSound::Close never returns).
+		// (0.07) Kept for the next play, which tries it again
 		iDev.FlushPlayBuffer();
 		iDevOpen = EFalse;
+		iDevHeld = ETrue;
 		}
 	iSilent = ETrue;
-	iObserver.EngineLog(_L("sound device: a play request not done in 3 s - silent from here"));
+	iObserver.EngineLog(_L("sound device: a play request not done in 3 s - silent to the next play"));
 	if (!iSilentSaid)
 		{
 		iSilentSaid = ETrue;
@@ -844,8 +882,9 @@ void CPaEngine::DoTick()
 		return;
 	TTime now;
 	now.UniversalTime();
-	// the watchdog: a request the device does not take
-	if (IsActive() && now.MicroSecondsFrom(iRequestTime) > TTimeIntervalMicroSeconds(TInt64(KPaWatchdog)))
+	// the watchdog: a request the device does not take (in the timer's
+	// ticks: they stand still while the machine is off)
+	if (IsActive() && ++iRequestTicks > KPaWatchdogTicks)
 		{
 		TInt heard = Played();
 		GoSilent();

@@ -23,6 +23,7 @@
 #include <eikapp.h>
 #include <eikdoc.h>
 #include <badesca.h>
+#include <t32alm.h>
 #include "psiamp.hrh"
 #include "mp3dec.h"
 #include "pacore.h"
@@ -126,6 +127,8 @@ private:
 	TBool iDevOpen;
 	TBool iSilent;                               // no sound device: timed by the clock alone
 	TBool iSilentSaid;
+	TBool iDevHeld;                              // (0.07) open but not in use after a stall: tried again at the next play
+	TInt iRequestTicks;                          // (0.07) the timer's ticks since the request went out
 	TInt iVolume;                                // 0..100
 	TInt iMaxVolume;
 	TBuf8<KChunk> iChunk;
@@ -234,6 +237,7 @@ class CPaFace : public CBase
 public:
 	~CPaFace();
 	void SetSizeL(TInt aW, TInt aH, TInt aScale);
+	void Free();                                 // (0.07) the pixels and the bitmap let go (SetSizeL makes them again)
 	void Put(const TPaSheet& aSheet, TInt aSx, TInt aSy, TInt aW, TInt aH, TInt aDx, TInt aDy);
 	void Fill(TInt aX, TInt aY, TInt aW, TInt aH, TUint8 aColour);
 	void Text(const TPaSheet& aFont, const TDesC& aText, TInt aX, TInt aY, TInt aW, TInt aOffset = 0);
@@ -262,6 +266,7 @@ public:
 	void ConstructL();
 	void LayoutL();                              // the size from the scale; the face again
 	void Compose(TBool aAll);                   // the changing parts (or all) into the face and on screen
+	void LetGo() { iFace.Free(); }               // (0.07) out of sight: LayoutL again before it is seen
 	TKeyResponse OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aType);
 	void SetActive(TBool aActive) { iActive = aActive; }
 private:
@@ -292,6 +297,7 @@ public:
 	void ConstructL();
 	void LayoutL();
 	void Compose();
+	void LetGo() { iFace.Free(); }
 	void ShowCurrent();                          // the selection in view
 	TInt Selected() const { return iSel; }
 	void SetSelected(TInt aIndex);
@@ -378,6 +384,7 @@ private:
 	void LoadSettings();
 	void SaveSettings();
 	void LoadListL(const TDesC& aM3u, TBool aAppend);
+	void ListLineL(TPtrC8 aLine, const TDesC& aM3u);
 	void SaveListL(const TDesC& aM3u);
 	void WriteListL(RFile& aFile);
 	void AddFileL(const TDesC& aName);
@@ -400,6 +407,10 @@ private:
 	static TInt Tick(TAny* aSelf);
 	void DoTick();
 	void StartTicks();
+	static TInt Keep(TAny* aSelf);
+	void DoKeep();
+	void LetGo();
+	TBool TakeBackL();
 	static TBool IsAudio(const TDesC& aName);
 	static TBool IsList(const TDesC& aName);
 private:
@@ -419,7 +430,14 @@ private:
 	TInt iCapCount;
 	TInt64 iSeed;
 	TBool iReady;                                // (0.06) ConstructL finished: only then is there anything to save
-	TBool iHiding;                               // put away by the user (not kept on top)
+	TBool iHidden;                               // (0.07) put away by the user: not kept on top until shown
+	TBool iListOk;                               // (0.07) the playlist was read whole (or made here): saved at the end
+	TBool iAway;                                 // (0.07) out of sight: the skin and the pictures let go
+	CPeriodic* iKeeper;                          // (0.07) while playing: the machine kept on, alarms watched
+	RAlarmServer iAlarms;
+	TBool iAlarmsOpen;
+	TInt iAlarmPaused;                           // the alarm last paused for
+	TTime iAlarmPausedAt;
 	TInt iTickCount;
 	TTime iLastToggle;
 	};

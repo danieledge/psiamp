@@ -16,4 +16,4 @@ RESOURCE      psiamp.rss
 USERINCLUDE   \ptproj\psiamp
 SYSTEMINCLUDE \epoc32\include
 
-LIBRARY       psiamphx.lib euser.lib efsrv.lib apparc.lib apgrfx.lib cone.lib eikon.lib ws32.lib gdi.lib fbscli.lib bafl.lib
+LIBRARY       psiamphx.lib euser.lib efsrv.lib apparc.lib apgrfx.lib cone.lib eikon.lib ws32.lib gdi.lib fbscli.lib bafl.lib ealwl.lib

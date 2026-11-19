@@ -250,6 +250,14 @@ CPaFace::~CPaFace()
 	delete iBmp;
 	}
 
+void CPaFace::Free()
+	{
+	User::Free(iPix);
+	iPix = NULL;
+	delete iBmp;
+	iBmp = NULL;
+	}
+
 void CPaFace::SetSizeL(TInt aW, TInt aH, TInt aScale)
 	{
 	if (iPix && aW == iW && aH == iH && aScale == iScale)
@@ -289,6 +297,8 @@ void CPaFace::Put(const TPaSheet& aSheet, TInt aSx, TInt aSy, TInt aW, TInt aH, 
 
 void CPaFace::Fill(TInt aX, TInt aY, TInt aW, TInt aH, TUint8 aColour)
 	{
+	if (!iPix)
+		return;
 	for (TInt y = aY; y < aY + aH; y++)
 		if (y >= 0 && y < iH)
 			for (TInt x = aX; x < aX + aW; x++)

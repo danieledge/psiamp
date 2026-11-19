@@ -19,7 +19,16 @@ UID 0x01000AFA (the recogniser PsiAmp.mdl: 0x01000AFB). Version 0.07 (not releas
 - The skin you choose is kept: PsiAmp used to start in Coda again every time.
 - View > Skin > Other skin… with the EPOC skin in use opens the file dialog at D:\ (it closed PsiAmp).
 - A playlist line with a disk but no `\` after it (`D:Music\a.mp3`) is left out (it closed PsiAmp).
-- The file dialogs start in C:\Documents when the disk they would start on is not there.
+- The file dialogs start in C:\Documents when the disk they would start on is not there, and at D:\ rather than in the ROM.
+- The machine stays on while PsiAmp plays, and PsiAmp pauses for an alarm so that it can sound.
+- Put away (and not kept on top), PsiAmp lets go of its skin and pictures, about 400 KB, and reads them again when it comes back. With Keep on top on, Esc and the minimise button now put it away.
+- Playlists of any length are read; a playlist that cannot be read is left as it is rather than saved over.
+- A folder with a file whose name is too long for the folder is added without that file (it closed PsiAmp).
+- Go to time and the position bar go to the time asked in a long MP3, not to the nearest 1% before it.
+- If the sound device stops answering, PsiAmp plays on silently to the end of the track and tries it again at the next one.
+- The display is only redrawn while something on it moves.
+- If PsiAmp's own skin is missing, the window says so rather than staying black.
+- Ctrl+S saves the playlist and Ctrl+P is left for printing, as in every EPOC program. Play, pause and stop are Space, X, C and V, and the buttons.
 
 ## What's new in 0.06
 
@@ -64,7 +73,7 @@ Install `dist/PsiAmp.sis` (to D: if you have a CF card). PsiAmp is on the Extras
 |---|---|
 | Open a file | tap an MP3, WAV or M3U on the System screen, or File > Open file (Ctrl+O), or the eject button |
 | A folder | File > Open folder (Shift+Ctrl+O; choose any file in it) or Add folder |
-| Play, pause, stop | the buttons; Space; Ctrl+P, Shift+Ctrl+P, Ctrl+S; X, C, V |
+| Play, pause, stop | the buttons; Space; X, C, V |
 | Previous, next | the buttons; Shift+Ctrl+B, Shift+Ctrl+N; Ctrl+Left, Ctrl+Right; Z, B |
 | Move in the track | drag the position bar; Left and Right (5 s); Go to time (Ctrl+G) |
 | Volume | drag the slider; + and -; Up and Down with the playlist hidden |

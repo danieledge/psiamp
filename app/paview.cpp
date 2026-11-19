@@ -308,6 +308,27 @@ void CPaMainWin::Compose(TBool aAll)
 void CPaMainWin::Draw(const TRect& aRect) const
 	{
 	CWindowGc& gc = SystemGc();
+	if (!iUi.Skin().Sheet(CPaSkin::EMain).iPix)
+		{
+		// (0.07) no skin could be read (Coda.wsz not beside the program):
+		// said, in place of a black window
+		const CFont* f = iEikonEnv->NormalFont();
+		gc.SetPenStyle(CGraphicsContext::ESolidPen);
+		gc.SetPenColor(KRgbBlack);
+		gc.SetBrushStyle(CGraphicsContext::ESolidBrush);
+		gc.SetBrushColor(TRgb(170, 170, 170));
+		gc.UseFont(f);
+		TRect r(Rect());
+		gc.DrawRect(r);
+		TInt h = f->HeightInPixels() + 4;
+		TRect line(r.iTl.iX + 8, r.iTl.iY + r.Height() / 2 - h, r.iBr.iX - 8, r.iTl.iY + r.Height() / 2);
+		gc.SetBrushStyle(CGraphicsContext::ENullBrush);
+		gc.DrawText(_L("PsiAmp's skin is missing"), line, f->AscentInPixels() + 2, CGraphicsContext::ECenter);
+		line.Move(0, h);
+		gc.DrawText(_L("Install PsiAmp again - Menu for its commands"), line, f->AscentInPixels() + 2, CGraphicsContext::ECenter);
+		gc.DiscardFont();
+		return;
+		}
 	if (iFace.Bitmap())
 		gc.BitBlt(aRect.iTl, iFace.Bitmap(), aRect);
 	}

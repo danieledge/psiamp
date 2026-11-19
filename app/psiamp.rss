@@ -29,6 +29,10 @@ RESOURCE EIK_APP_INFO
 	hotkeys=r_pa_hotkeys;
 	}
 
+// (0.07) Ctrl+S is Save (the playlist) and Ctrl+P, Print, is left free, as
+// in every EPOC program: they were Stop and Play, which a program that
+// saves or prints by sending its Ctrl+S or Ctrl+P (Share) ran. Play, pause
+// and stop are Space, X, C and V in the player, and the buttons
 RESOURCE HOTKEYS r_pa_hotkeys
 	{
 	control=
@@ -38,8 +42,7 @@ RESOURCE HOTKEYS r_pa_hotkeys
 		HOTKEY { command=EPaCmdRemove; key='d'; },
 		HOTKEY { command=EPaCmdPlaylist; key='l'; },
 		HOTKEY { command=EPaCmdDouble; key='m'; },
-		HOTKEY { command=EPaCmdPlay; key='p'; },
-		HOTKEY { command=EPaCmdStop; key='s'; },
+		HOTKEY { command=EPaCmdSavePlaylist; key='s'; },
 		HOTKEY { command=EPaCmdGoTo; key='g'; },
 		HOTKEY { command=EPaCmdPrefs; key='k'; }
 		};
@@ -49,7 +52,6 @@ RESOURCE HOTKEYS r_pa_hotkeys
 		HOTKEY { command=EPaCmdOpenFolder; key='o'; },
 		HOTKEY { command=EPaCmdSavePlaylist; key='s'; },
 		HOTKEY { command=EPaCmdClear; key='d'; },
-		HOTKEY { command=EPaCmdPause; key='p'; },
 		HOTKEY { command=EPaCmdPrev; key='b'; },
 		HOTKEY { command=EPaCmdNext; key='n'; },
 		HOTKEY { command=EPaCmdShuffle; key='x'; },

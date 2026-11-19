@@ -18,6 +18,8 @@
 #include <eikmenu.hrh>
 #include <eikcmds.hrh>
 #include <eikon.rsg>
+#include <e32hal.h>
+#include <t32alm.h>
 #include <psiamp.rsg>
 #include "psiamp.h"
 
@@ -127,13 +129,23 @@ CPaAppUi::~CPaAppUi()
 		iSet.iTrack = iCurrent;
 		iSet.iPosMs = iEngine->IsOpen() ? iEngine->PositionMs() : 0;
 		SaveSettings();
-		TRAPD(err, SaveListL(KPaListFile));
-		(void)err;
+		// (0.07) only a playlist that was read whole (or made here): one
+		// that could not be read is left as it is, not overwritten
+		if (iListOk)
+			{
+			TRAPD(err, SaveListL(KPaListFile));
+			(void)err;
+			}
 		}
 	ReleaseKeys();
 	if (iTicker)
 		iTicker->Cancel();
 	delete iTicker;
+	if (iKeeper)
+		iKeeper->Cancel();
+	delete iKeeper;
+	if (iAlarmsOpen)
+		iAlarms.Close();
 	if (iMain)
 		{
 		RemoveFromStack(iMain);
@@ -167,7 +179,24 @@ void CPaAppUi::ConstructL()
 	TRAP(err, SetSkinL(chosen, EFalse));
 	if (!iSkin)
 		User::Leave(KErrNoMemory);
+	if (!iSkin->Sheet(CPaSkin::EMain).iPix)
+		{
+		// (0.07) not even Coda: said (the window says so too)
+		Log(_L("no skin could be read"));
+		iEikonEnv->InfoMsg(_L("PsiAmp's skin is missing - install PsiAmp again"));
+		}
 	TRAP(err, LoadListL(KPaListFile, EFalse));
+	iListOk = err == KErrNone || err == KErrNotFound || err == KErrPathNotFound;
+	if (!iListOk)
+		{
+		// (0.07) kept as it is on the disk: not saved over at the end
+		TBuf<64> m;
+		m.Format(_L("playlist not read (%d): left as it is"), err);
+		Log(m);
+		iList->Reset();
+		iTitles->Reset();
+		iEikonEnv->InfoMsg(err == KErrNoMemory ? _L("Not enough memory for the playlist") : _L("Cannot read the playlist"));
+		}
 	if (err == KErrNotFound || err == KErrPathNotFound)
 		{
 		// the first start: the sample, Coda, beside the program, in the
@@ -188,6 +217,8 @@ void CPaAppUi::ConstructL()
 	AddToStackL(iMain);
 	LayoutWindowsL();
 	iTicker = CPeriodic::NewL(CActive::EPriorityLow);
+	iKeeper = CPeriodic::NewL(CActive::EPriorityLow);
+	iAlarmsOpen = iAlarms.Connect() == KErrNone;
 	CaptureKeys();
 	CPaDocument* doc = (CPaDocument*)Document();
 	if (doc->iStartFile.Length())
@@ -358,6 +389,10 @@ void CPaAppUi::AddFolderL(const TDesC& aFolder)
 		const TEntry& e = (*dir)[i];
 		if (e.IsDir() || !IsAudio(e.iName))
 			continue;
+		// (0.07) a name too long for the folder's (up to 256 letters in
+		// all) is left out: it overflowed the name (USER 11)
+		if (folder.Length() + e.iName.Length() > folder.MaxLength())
+			continue;
 		TFileName f(folder);
 		f.Append(e.iName);
 		AddFileL(f);
@@ -374,61 +409,99 @@ void CPaAppUi::AddFolderL(const TDesC& aFolder)
 	iEikonEnv->InfoMsg(m);
 	}
 
+// (0.07) read a piece at a time, so a playlist of any length is read: it
+// was refused over 256 KB, which PsiAmp itself could write (read as empty,
+// then saved over)
 void CPaAppUi::LoadListL(const TDesC& aM3u, TBool aAppend)
 	{
 	RFile f;
 	User::LeaveIfError(f.Open(iCoeEnv->FsSession(), aM3u, EFileRead | EFileShareReadersOnly));
 	CleanupClosePushL(f);
-	TInt size = 0;
-	f.Size(size);
-	if (size > 256 * 1024)
-		User::Leave(KErrTooBig);
-	HBufC8* buf = HBufC8::NewLC(size);
+	const TInt KPiece = 4096;
+	HBufC8* buf = HBufC8::NewLC(KPiece);
 	TPtr8 p = buf->Des();
-	User::LeaveIfError(f.Read(p));
 	if (!aAppend)
 		{
 		iList->Reset();
 		iTitles->Reset();
 		iCurrent = 0;
 		}
-	TParsePtrC base(aM3u);
-	TInt at = 0;
-	while (at < p.Length())
+	TFileName base(aM3u);
+	TInt keep = 0;                               // the start of a line carried from the last piece
+	TBool skip = EFalse;                         // in a line longer than a piece: to its end
+	TBool first = ETrue;
+	for (;;)
 		{
-		TInt end = at;
-		while (end < p.Length() && p[end] != '\n' && p[end] != '\r')
-			end++;
-		TPtrC8 line = p.Mid(at, end - at);
-		at = end + 1;
-		// (a UTF-8 mark at the start, spaces round the name)
-		if (line.Length() >= 3 && line[0] == 0xef && line[1] == 0xbb && line[2] == 0xbf)
-			line.Set(line.Mid(3));
-		while (line.Length() && (line[0] == ' ' || line[0] == '\t'))
-			line.Set(line.Mid(1));
-		while (line.Length() && (line[line.Length() - 1] == ' ' || line[line.Length() - 1] == '\t'))
-			line.Set(line.Left(line.Length() - 1));
-		if (!line.Length() || line[0] == '#' || line.Length() > 200)
-			continue;
-		TFileName name;
-		name.Copy(line);
-		for (TInt i = 0; i < name.Length(); i++)
-			if (name[i] == '/')
-				name[i] = '\\';
-		if (!(name.Length() > 2 && name[1] == ':'))
+		TPtr8 more((TUint8*)p.Ptr() + keep, 0, KPiece - keep);
+		User::LeaveIfError(f.Read(more));
+		TBool eof = more.Length() < KPiece - keep;
+		p.SetLength(keep + more.Length());
+		if (first && p.Length() >= 3 && p[0] == 0xef && p[1] == 0xbb && p[2] == 0xbf)
 			{
-			// relative to the list's folder
-			TFileName full(base.DriveAndPath());
-			if (name.Length() && name[0] == '\\')
-				full = base.Drive();
-			if (full.Length() + name.Length() > full.MaxLength())
-				continue;                        // (too long to be a file's name)
-			full.Append(name);
-			name = full;
+			// (a UTF-8 mark at the start)
+			p.Delete(0, 3);
 			}
-		AddFileL(name);
+		first = EFalse;
+		TInt at = 0;
+		for (;;)
+			{
+			TInt end = at;
+			while (end < p.Length() && p[end] != '\n' && p[end] != '\r')
+				end++;
+			if (end >= p.Length() && !eof)
+				break;                           // (the rest with the next piece)
+			if (!skip)
+				ListLineL(p.Mid(at, end - at), base);
+			skip = EFalse;
+			at = end + 1;
+			if (at >= p.Length())
+				break;
+			}
+		if (eof)
+			break;
+		keep = at < p.Length() ? p.Length() - at : 0;
+		if (keep >= KPiece)
+			{
+			// no line's end in a whole piece: not a name; to its end
+			skip = ETrue;
+			keep = 0;
+			}
+		else if (keep)
+			Mem::Copy((TUint8*)p.Ptr(), p.Ptr() + at, keep);
 		}
 	CleanupStack::PopAndDestroy(2);
+	}
+
+// one line of a playlist: a file's name (relative to the list's folder if
+// it has no disk), a comment or nothing
+void CPaAppUi::ListLineL(TPtrC8 aLine, const TDesC& aM3u)
+	{
+	TPtrC8 line(aLine);
+	// (spaces round the name)
+	while (line.Length() && (line[0] == ' ' || line[0] == '\t'))
+		line.Set(line.Mid(1));
+	while (line.Length() && (line[line.Length() - 1] == ' ' || line[line.Length() - 1] == '\t'))
+		line.Set(line.Left(line.Length() - 1));
+	if (!line.Length() || line[0] == '#' || line.Length() > 200)
+		return;
+	TParsePtrC base(aM3u);
+	TFileName name;
+	name.Copy(line);
+	for (TInt i = 0; i < name.Length(); i++)
+		if (name[i] == '/')
+			name[i] = '\\';
+	if (!(name.Length() > 2 && name[1] == ':'))
+		{
+		// relative to the list's folder
+		TFileName full(base.DriveAndPath());
+		if (name.Length() && name[0] == '\\')
+			full = base.Drive();
+		if (full.Length() + name.Length() > full.MaxLength())
+			return;                              // (too long to be a file's name)
+		full.Append(name);
+		name = full;
+		}
+	AddFileL(name);
 	}
 
 void CPaAppUi::SaveListL(const TDesC& aM3u)
@@ -497,6 +570,7 @@ void CPaAppUi::OpenFileL(const TDesC& aFileName)
 		iCurrent = 0;
 		AddFileL(aFileName);
 		}
+	iListOk = ETrue;                             // (a new list: saved at the end)
 	iListWin->SetSelected(0);
 	if (iList->Count())
 		PlayIndexL(0);
@@ -521,13 +595,17 @@ TBool CPaAppUi::AskFileL(TFileName& aName, TInt aTitle)
 	{
 	// (0.07) every caller: a start that will not do is the playing file's,
 	// else C:\Documents
+	// (0.07) and not the ROM's Z: (the first start's sample is there): D:\
+	// if there is a card, else C:\Documents
 	if (!StartsWell(aName))
 		{
 		if (iList->Count() && iCurrent >= 0 && iCurrent < iList->Count() && StartsWell((*iList)[iCurrent]))
 			aName = (*iList)[iCurrent];
 		else
-			aName = _L("C:\\Documents\\");
+			aName.Zero();
 		}
+	if (!aName.Length() || aName[0] == 'Z' || aName[0] == 'z')
+		aName = StartsWell(_L("D:\\")) ? _L("D:\\") : _L("C:\\Documents\\");
 	CEikFileOpenDialog* d = new(ELeave) CEikFileOpenDialog(&aName, aTitle);
 	return d->ExecuteLD(R_EIK_DIALOG_FILE_OPEN);
 	}
@@ -665,6 +743,8 @@ void CPaAppUi::SetVolume(TInt aPercent)
 
 void CPaAppUi::EngineChanged()
 	{
+	if (iTicker)
+		StartTicks();
 	if (iMain)
 		iMain->Compose(ETrue);
 	if (iListWin)
@@ -811,6 +891,11 @@ void CPaAppUi::SetOnTop(TBool aOn)
 	if (aOn)
 		{
 		// over every program, without taking the keys from the one in use
+		if (!TakeBackL())
+			{
+			iPinned = EFalse;
+			return;
+			}
 		wg.EnableReceiptOfFocus(EFalse);
 		wg.SetOrdinalPosition(0, ECoeWinPriorityAlwaysAtFront);
 		iListWin->MakeVisible(EFalse);
@@ -825,20 +910,23 @@ void CPaAppUi::SetOnTop(TBool aOn)
 
 void CPaAppUi::ShowL()
 	{
+	iHidden = EFalse;
 	SetOnTop(EFalse);
 	TApaTask me(iCoeEnv->WsSession());
 	me.SetWgId(iCoeEnv->RootWin().Identifier());
 	me.BringToForeground();
 	}
 
+// (0.07) put away until shown again: with Keep on top on, the player came
+// back on top at once (the foreground event comes after SendToBackground
+// has returned, when a flag set round it had been cleared)
 void CPaAppUi::HideL()
 	{
-	iHiding = ETrue;
+	iHidden = ETrue;
 	SetOnTop(EFalse);
 	TApaTask me(iCoeEnv->WsSession());
 	me.SetWgId(iCoeEnv->RootWin().Identifier());
 	me.SendToBackground();
-	iHiding = EFalse;
 	}
 
 void CPaAppUi::HandleForegroundEventL(TBool aForeground)
@@ -850,22 +938,129 @@ void CPaAppUi::HandleForegroundEventL(TBool aForeground)
 	// KERN-EXEC 3 in place of "Not enough memory"
 	if (!iReady)
 		return;
+	if (aForeground)
+		{
+		iHidden = EFalse;
+		if (!TakeBackL())
+			{
+			// (no memory for the skin: said; back where it was)
+			HideL();
+			return;
+			}
+		}
 	iMain->SetActive(aForeground);
 	iListWin->SetActive(aForeground);
 	if (aForeground)
 		SetOnTop(EFalse);
-	else if (iSet.iOnTop && !iHiding)
+	else if (iSet.iOnTop && !iHidden)
 		SetOnTop(ETrue);
+	if (!aForeground && !iPinned)
+		LetGo();
 	iMain->Compose(ETrue);
 	iListWin->Compose();
 	StartTicks();
 	}
 
+// (0.07) behind other programs and not on top, nothing is seen: the skin
+// and the two windows' pictures (about 500 KB at double size) are let go,
+// and read again when PsiAmp comes back
+void CPaAppUi::LetGo()
+	{
+	if (iAway || !iSkin)
+		return;
+	CPaSkin* none = NULL;
+	TRAPD(err, none = CPaSkin::NewL());
+	if (err != KErrNone)
+		return;
+	delete iSkin;
+	iSkin = none;
+	iMain->MakeVisible(EFalse);
+	iListWin->MakeVisible(EFalse);
+	iMain->LetGo();
+	iListWin->LetGo();
+	iAway = ETrue;
+	User::Heap().Compress();                     // (given back to the system, not kept in the heap)
+	}
+
+// the skin and the pictures again (ETrue), or not enough memory: said
+TBool CPaAppUi::TakeBackL()
+	{
+	if (!iAway)
+		return ETrue;
+	TFileName chosen(iSet.iSkin);
+	TRAPD(err, SetSkinL(chosen, EFalse));
+	iSet.iSkin = chosen;                         // (kept, even if Coda had to do this time)
+	if (err == KErrNone)
+		{
+		TRAP(err, { iMain->LayoutL(); iListWin->LayoutL(); });
+		}
+	if (err != KErrNone)
+		{
+		iMain->LetGo();
+		iListWin->LetGo();
+		iEikonEnv->InfoMsg(_L("Not enough memory to show PsiAmp"));
+		return EFalse;
+		}
+	iAway = EFalse;
+	iMain->MakeVisible(ETrue);
+	iListWin->MakeVisible(iSet.iPlaylist != 0 && !iPinned);
+	return ETrue;
+	}
+
+// (0.07) the display's tick only while something on it moves: 10 a second
+// while playing, 2 while paused (the time blinks), none when stopped; and
+// only while it can be seen. The keeper, while playing, keeps the machine
+// on and stops for an alarm
 void CPaAppUi::StartTicks()
 	{
 	iTicker->Cancel();
-	if (iInFront || iPinned)
-		iTicker->Start(100000, 100000, TCallBack(Tick, this));
+	CPaEngine::TState st = iEngine->State();
+	if ((iInFront || iPinned) && !iAway && st != CPaEngine::EStopped)
+		{
+		TInt us = st == CPaEngine::EPlaying ? 100000 : 500000;
+		iTicker->Start(us, us, TCallBack(Tick, this));
+		}
+	if (st == CPaEngine::EPlaying)
+		{
+		if (!iKeeper->IsActive())
+			iKeeper->Start(0, 2000000, TCallBack(Keep, this));
+		}
+	else
+		iKeeper->Cancel();
+	}
+
+TInt CPaAppUi::Keep(TAny* aSelf)
+	{
+	((CPaAppUi*)aSelf)->DoKeep();
+	return ETrue;
+	}
+
+void CPaAppUi::DoKeep()
+	{
+	if (iEngine->State() != CPaEngine::EPlaying)
+		return;
+	// (0.07) the machine stays on while it plays (it switched off after
+	// the auto switch-off time in the middle of a track)
+	UserHal::ResetAutoSwitchOffTimer();
+	// (0.07) an alarm due: paused, so that the sound device is free for
+	// it (each alarm once: played on again, it is not paused again)
+	if (!iAlarmsOpen || iAlarms.AlarmSoundState() != EAlarmSoundOn)
+		return;
+	TAlarmInfo info;
+	if (iAlarms.AlarmInfo(info, RAlarmServer::EInfoNext) != KErrNone || info.iAlarmId == KNullAlarmID)
+		return;
+	TTime now;
+	now.HomeTime();
+	TTimeIntervalSeconds left;
+	if (info.iAlarmTime.SecondsFrom(now, left) != KErrNone || left.Int() > 3 || left.Int() < -2)
+		return;
+	if (info.iAlarmId == iAlarmPaused && info.iAlarmTime == iAlarmPausedAt)
+		return;
+	iAlarmPaused = info.iAlarmId;
+	iAlarmPausedAt = info.iAlarmTime;
+	Log(_L("an alarm due: paused"));
+	iEngine->Pause();
+	iEikonEnv->InfoMsg(_L("Paused for an alarm"));
 	}
 
 TInt CPaAppUi::Tick(TAny* aSelf)
@@ -877,7 +1072,8 @@ TInt CPaAppUi::Tick(TAny* aSelf)
 void CPaAppUi::DoTick()
 	{
 	iMain->Compose(EFalse);
-	if (++iTickCount % 10 == 0 && iSet.iPlaylist && !iPinned)
+	// (the list's running time, once a second, while playing)
+	if (iEngine->State() == CPaEngine::EPlaying && ++iTickCount % 10 == 0 && iSet.iPlaylist && !iPinned)
 		iListWin->Compose();
 	}
 
@@ -1154,6 +1350,7 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 			iTitles->Reset();
 			iCurrent = 0;                        // (a folder with no sound files leaves an empty list)
 			was = 0;
+			iListOk = ETrue;
 			}
 		AddFolderL(p.DriveAndPath());
 		if (aCommand == EPaCmdOpenFolder && iList->Count())
@@ -1221,6 +1418,7 @@ void CPaAppUi::HandleCommandL(TInt aCommand)
 		iList->Reset();
 		iTitles->Reset();
 		iCurrent = 0;
+		iListOk = ETrue;
 		iListWin->SetSelected(0);
 		iMain->Compose(ETrue);
 		break;
